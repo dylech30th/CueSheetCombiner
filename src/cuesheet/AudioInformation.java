@@ -55,6 +55,10 @@ public class AudioInformation {
     public String getTag(FieldKey key) {
         List<TagField> field = nameTagMap.get(key);
         if (field == null || field.size() == 0) return "";
-        return field.get(0) instanceof ID3v23Frame ? ((ID3v23Frame) field.get(0)).getContent() : field.get(0).toString();
+        TagField tagField = field.get(0);
+        if (tagField instanceof ID3v23Frame) {
+            return ((ID3v23Frame) tagField).getContent();
+        }
+        return tagField.toString();
     }
 }
