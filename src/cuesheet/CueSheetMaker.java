@@ -69,7 +69,7 @@ public class CueSheetMaker {
     public CueSheetMaker(List<String> toCombineList, CueConfig cueConfig, FieldKey... fieldKeys) {
         File file = new File(toCombineList.get(0));
         this.toCombineList = toCombineList;
-        this.fieldKeys = fieldKeys;
+        if (fieldKeys.length != 0) this.fieldKeys = fieldKeys;
         this.cueDirectory = cueConfig.getCueDirectory();
         this.cueFilePath = cueConfig.getCueFilePath();
         this.outputPath = cueConfig.getOutputAudioPath();
@@ -93,7 +93,7 @@ public class CueSheetMaker {
         return new Pair<>(minute, second);
     }
 
-    private <T extends AudioFileReader> AudioInformation getActualInfo(String filePath, T audioFileReader, FieldKey... fieldKeys) {
+    private <T extends AudioFileReader> AudioInformation getActualInfo(String filePath, T audioFileReader, FieldKey[] fieldKeys) {
         AudioFile fileInfo = null;
         try {
             fileInfo = audioFileReader.read(new File(filePath));
@@ -139,13 +139,12 @@ public class CueSheetMaker {
         process.destroy();
     }
 
-    public void printInformation(AudioInformation information) {
-        Stream<FieldKey> queryContent = information.getNameTagMap().keySet().stream();
+    public void printInformation(String filePath) {
+        AudioInformation information = getAudioInformation(filePath);
+        Stream<FieldKey> queryContent = Objects.requireNonNull(information).getNameTagMap().keySet().stream();
         System.out.println("时长: " + information.getMinute() + "分" + information.getSecond() + "秒");
         System.out.println("文件路径: " + information.getFilePath());
-        queryContent.map(t -> information.getNameTagMap().get(t))
-                .flatMap(Collection::stream)
-                .forEach(t -> System.out.println("Tag ID: " + t.getId() + " Tag Content: " + t.toString()));
+        queryContent.filter(t -> !information.getTag(t).isEmpty()).forEach(t -> System.out.println("Tag ID: " + t + " Tag Content: " + information.getTag(t)));
     }
 
     private CUE parse(CUEHeader cueHeader, Duration gap) {
@@ -162,11 +161,16 @@ public class CueSheetMaker {
                     Integer.valueOf(this.index.getMinute()),
                     Integer.valueOf(this.index.getSecond()),
                     Integer.valueOf(this.index.getFrame()));
-            Duration index01 = new Duration(
-                    Integer.valueOf(gap.getMinute()) + Integer.valueOf(this.index.getMinute()),
-                    Integer.valueOf(gap.getSecond()) + Integer.valueOf(this.index.getSecond()),
-                    Integer.valueOf(gap.getFrame())
-            );
+            Duration index01;
+            if (offset == 0) {
+                index01 = new Duration(0, 0, 0);
+            } else {
+                index01 = new Duration(
+                        Integer.valueOf(gap.getMinute()) + Integer.valueOf(this.index.getMinute()),
+                        Integer.valueOf(gap.getSecond()) + Integer.valueOf(this.index.getSecond()),
+                        Integer.valueOf(gap.getFrame())
+                );
+            }
             this.index = new Duration(
                     information.getMinute() + Integer.valueOf(index00.getMinute()),
                     information.getSecond() + Integer.valueOf(index00.getSecond()),
